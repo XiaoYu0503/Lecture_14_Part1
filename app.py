@@ -101,7 +101,8 @@ try:
         layers=[scatter_layer, name_layer, text_layer],
         initial_view_state=view_state,
         tooltip={"text": "{location}\n{description}\n{min_temp}°C - {max_temp}°C"},
-        map_style="mapbox://styles/mapbox/light-v9" # Light style map
+        # Remove explicit map_style to use Streamlit's default (which doesn't require a token)
+        # map_style="mapbox://styles/mapbox/light-v9" 
     )
     
     st.pydeck_chart(r)
