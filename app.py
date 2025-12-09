@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import pydeck as pdk
 
 # Set page config for better title and layout
 st.set_page_config(page_title="CWA 天氣預報", layout="wide", page_icon="🌤️")
@@ -38,8 +39,76 @@ try:
     df = pd.read_sql_query(query, conn)
     conn.close()
 
+    # Map Visualization
+    st.subheader("臺灣天氣地圖")
+    
+    # Prepare data for map
+    # We want to show temperature on the map.
+    # Pydeck needs a layer.
+    
+    # Add a column for tooltip or display
+    df['temp_display'] = df.apply(lambda row: f"{row['min_temp']} - {row['max_temp']}°C", axis=1)
+    df['icon'] = df['description'].apply(get_weather_icon)
+    
+    # Define a layer to display text (Temperature)
+    text_layer = pdk.Layer(
+        "TextLayer",
+        df,
+        pickable=True,
+        get_position='[lon, lat]',
+        get_text='temp_display',
+        get_size=16,
+        get_color=[0, 0, 0],
+        get_angle=0,
+        # Note: TextLayer anchors are a bit tricky, usually center is default
+        get_text_anchor='"middle"',
+        get_alignment_baseline='"center"'
+    )
+
+    # Define a layer for the location name (above temp)
+    name_layer = pdk.Layer(
+        "TextLayer",
+        df,
+        pickable=True,
+        get_position='[lon, lat]',
+        get_text='location',
+        get_size=14,
+        get_color=[0, 0, 128], # Navy blue
+        get_pixel_offset=[0, -20], # Shift up
+        get_text_anchor='"middle"',
+        get_alignment_baseline='"center"'
+    )
+    
+    # Define a layer for scatter plot (dots) to mark the spot
+    scatter_layer = pdk.Layer(
+        "ScatterplotLayer",
+        df,
+        get_position='[lon, lat]',
+        get_color=[255, 0, 0, 160],
+        get_radius=5000, # 5km radius
+    )
+
+    # Set the view state
+    view_state = pdk.ViewState(
+        latitude=23.7,
+        longitude=121.0,
+        zoom=7,
+        pitch=0,
+    )
+
+    # Render the deck.gl map
+    r = pdk.Deck(
+        layers=[scatter_layer, name_layer, text_layer],
+        initial_view_state=view_state,
+        tooltip={"text": "{location}\n{description}\n{min_temp}°C - {max_temp}°C"},
+        map_style="mapbox://styles/mapbox/light-v9" # Light style map
+    )
+    
+    st.pydeck_chart(r)
+
+
     # Display as metrics in columns
-    st.subheader("各地區預報")
+    st.subheader("各地區預報詳細")
     
     # Create a grid layout
     # We have 6 regions usually. 3 columns x 2 rows looks good.
@@ -63,7 +132,7 @@ try:
     
     # Style the dataframe
     st.dataframe(
-        df, 
+        df[['location', 'min_temp', 'max_temp', 'description']], 
         use_container_width=True,
         column_config={
             "location": "地區",

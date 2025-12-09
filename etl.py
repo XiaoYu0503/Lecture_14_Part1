@@ -11,6 +11,17 @@ data = response.json()
 
 # 2. Parse Data
 locations_data = []
+
+# Hardcoded coordinates for regions (approximate centers)
+region_coords = {
+    "北部地區": (24.9, 121.5),
+    "中部地區": (24.0, 120.8),
+    "南部地區": (23.0, 120.5),
+    "東北部地區": (24.6, 121.7),
+    "東部地區": (23.8, 121.5),
+    "東南部地區": (22.7, 121.0)
+}
+
 try:
     raw_locations = data['cwaopendata']['resources']['resource']['data']['agrWeatherForecasts']['weatherForecasts']['location']
     
@@ -27,8 +38,10 @@ try:
         max_temp = float(max_t_obj['temperature'])
         description = wx_obj['weather']
         
-        locations_data.append((name, min_temp, max_temp, description))
-        print(f"Parsed: {name}, Min: {min_temp}, Max: {max_temp}, Desc: {description}")
+        lat, lon = region_coords.get(name, (23.5, 121.0)) # Default to center of Taiwan if unknown
+
+        locations_data.append((name, min_temp, max_temp, description, lat, lon))
+        print(f"Parsed: {name}, Min: {min_temp}, Max: {max_temp}, Desc: {description}, Coords: ({lat}, {lon})")
 
 except KeyError as e:
     print(f"Error parsing JSON structure: {e}")
@@ -48,14 +61,16 @@ CREATE TABLE weather (
     location TEXT,
     min_temp REAL,
     max_temp REAL,
-    description TEXT
+    description TEXT,
+    lat REAL,
+    lon REAL
 );
 """
 cursor.execute(create_table_sql)
 print("Database and table created.")
 
 # 4. Insert Data
-insert_sql = "INSERT INTO weather (location, min_temp, max_temp, description) VALUES (?, ?, ?, ?)"
+insert_sql = "INSERT INTO weather (location, min_temp, max_temp, description, lat, lon) VALUES (?, ?, ?, ?, ?, ?)"
 cursor.executemany(insert_sql, locations_data)
 conn.commit()
 
